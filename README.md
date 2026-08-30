@@ -1,11 +1,30 @@
-<div align="center">
+# 1DwP - One Day With Petugas (PLN)
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+Aplikasi Pendampingan Yantek & Manbill dengan integrasi Google Spreadsheet & Google Drive via Google Apps Script (GAS).
 
-  <h1>Built with AI Studio</h2>
+## 🚀 Panduan Deployment ke Vercel & GitHub
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+### 1. Push ke Repository GitHub
+1. Buat repository baru di [GitHub](https://github.com/new).
+2. Jalankan perintah berikut di terminal lokal Anda:
+   ```bash
+   git init
+   git add .
+   git commit -m "Initial commit: 1DwP App"
+   git branch -M main
+   git remote add origin https://github.com/USERNAME/REPOSITORY_NAME.git
+   git push -u origin main
+   ```
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+### 2. Deploy ke Vercel
+1. Login ke [Vercel Dashboard](https://vercel.com).
+2. Klik **Add New...** > **Project**.
+3. Hubungkan akun GitHub Anda dan pilih repository `1DwP`.
+4. Pada bagian **Configure Project**:
+   - **Framework Preset**: `Vite`
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `dist`
+5. Klik **Deploy**.
 
-</div>
+### 3. Konfigurasi Google Apps Script (GAS)
+Pastikan Anda telah menyalin script `code.gs` ke Google Spreadsheet Anda dan melakukan Deploy sebagai Web App (`Execute as: Me`, `Who has access: Anyone`), lalu pastikan URL Web App sudah dimasukkan ke `/src/services/gasConfig.ts`.

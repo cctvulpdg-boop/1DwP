@@ -1,0 +1,11 @@
+{
+  "name": "1DwP",
+  "description": "1DwP (One Day With Petugas) - Sistem Pendampingan Yantek & Manbill dengan integrasi Google Spreadsheet & Drive serta foto eviden ber-watermark.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
