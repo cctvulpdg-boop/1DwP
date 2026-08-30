@@ -30,17 +30,39 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="sticky top-0 z-40 bg-gradient-to-r from-blue-950 via-blue-900 to-indigo-950 border-b border-blue-800/60 text-white px-4 py-3 shadow-xl">
       <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
         {/* Left: Brand / Logo */}
-        <div className="flex items-center gap-3">
-          <div className="shrink-0 flex items-center justify-center">
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center justify-center">
             <img
               src="https://lh3.googleusercontent.com/d/1HGB_XQgMAG99kFWvUFNptJv6F319KX6_"
               alt="1DwP Logo"
-              className="w-16 h-16 sm:w-20 sm:h-20 object-contain drop-shadow-md"
+              className="w-14 h-14 sm:w-18 sm:h-18 object-contain drop-shadow-md"
               onError={(e) => {
                 // Fallback if image fails to load
                 (e.target as HTMLElement).style.display = 'none';
               }}
             />
+          </div>
+        </div>
+
+        {/* Center: Header Titles (Embossed Yellow) */}
+        <div className="flex-1 text-center px-1">
+          <div 
+            className="text-xs sm:text-sm md:text-base font-black tracking-wider text-yellow-300 uppercase leading-tight"
+            style={{ textShadow: '0 2px 4px rgba(0, 0, 0, 0.9), 0 0 12px rgba(253, 224, 71, 0.5)' }}
+          >
+            PLN ELECTRICITY SERVICES
+          </div>
+          <div 
+            className="text-[11px] sm:text-xs md:text-sm font-bold tracking-wide text-yellow-200 uppercase leading-tight mt-0.5"
+            style={{ textShadow: '0 1px 3px rgba(0, 0, 0, 0.9), 0 0 8px rgba(254, 240, 138, 0.4)' }}
+          >
+            UP4 SUMATERA BARAT
+          </div>
+          <div 
+            className="text-[10px] sm:text-[11px] md:text-xs font-semibold tracking-wider text-yellow-100 uppercase leading-tight mt-0.5"
+            style={{ textShadow: '0 1px 2px rgba(0, 0, 0, 0.8)' }}
+          >
+            UNIT LAYANAN PADANG
           </div>
         </div>
 

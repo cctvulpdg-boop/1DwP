@@ -23,6 +23,7 @@ import {
   getCompanions,
   getOfficers,
   getQuestions,
+  getLaporanYantekFromSpreadsheet,
   FALLBACK_DIVISI,
   FALLBACK_ULP,
   FALLBACK_PENDAMPING,
@@ -34,12 +35,15 @@ import { LoginPage } from './components/LoginPage';
 import { AssistancePage } from './components/AssistancePage';
 import { QuestionsPage } from './components/QuestionsPage';
 import { SuccessModal } from './components/SuccessModal';
+import { AdminDashboard } from './components/AdminDashboard';
 import { AnimatePresence } from 'motion/react';
 
 export default function App() {
   const [authState, setAuthState] = useState<GoogleAuthState>(getAuthState());
   const [step, setStep] = useState<AppStep>('login');
   const [isLoadingData, setIsLoadingData] = useState<boolean>(false);
+
+  const [reports, setReports] = useState<InspectionFormData[]>([]);
 
   // Spreadsheet Data Collections
   const [divisions, setDivisions] = useState<string[]>(FALLBACK_DIVISI);
@@ -75,17 +79,18 @@ export default function App() {
     return unsub;
   }, []);
 
-  // 2. Load Spreadsheet Data
+  // 2. Load Spreadsheet Data directly from Google Sheets
   const loadSpreadsheetData = useCallback(async () => {
     setIsLoadingData(true);
     try {
-      const [divs, unList, divObjs, unObjs, compList, offList] = await Promise.all([
+      const [divs, unList, divObjs, unObjs, compList, offList, repList] = await Promise.all([
         getDivisions(),
         getUnits(),
         getDivisionItems(),
         getUnitItems(),
         getCompanions(),
         getOfficers(),
+        getLaporanYantekFromSpreadsheet(),
       ]);
 
       if (divs && divs.length > 0) setDivisions(divs);
@@ -94,14 +99,15 @@ export default function App() {
       if (unObjs && unObjs.length > 0) setUnitItems(unObjs);
       if (compList && compList.length > 0) setCompanions(compList);
       if (offList && offList.length > 0) setOfficers(offList);
+      if (repList && repList.length > 0) setReports(repList);
     } catch (err) {
-      console.warn('Could not refresh spreadsheet data, fallback applied:', err);
+      console.warn('Could not refresh spreadsheet data:', err);
     } finally {
       setIsLoadingData(false);
     }
   }, []);
 
-  // Refresh data when Google Auth state changes
+  // Refresh data on mount and when Google Auth state changes
   useEffect(() => {
     loadSpreadsheetData();
   }, [authState.isSignedIn, loadSpreadsheetData]);
@@ -119,6 +125,10 @@ export default function App() {
     if (formData.division && formData.unit && formData.companion) {
       setStep('assistance');
     }
+  };
+
+  const handleAdminLogin = () => {
+    setStep('admin-dashboard');
   };
 
   // Step 2 -> Step 3: Start Questions
@@ -152,6 +162,14 @@ export default function App() {
 
   // Step 3 -> Step 4: Submission Success
   const handleSubmitSuccess = (sheetName: string) => {
+    setReports((prev) => [
+      {
+        ...formData,
+        reportId: formData.reportId || `RPT-${Date.now()}`,
+        submittedAt: new Date().toLocaleString('id-ID'),
+      },
+      ...prev,
+    ]);
     setLastSubmittedSheet(sheetName);
     setStep('success');
   };
@@ -188,6 +206,23 @@ export default function App() {
     setStep('login');
   };
 
+  if (step === 'admin-dashboard') {
+    return (
+      <AdminDashboard
+        units={units}
+        divisions={divisions}
+        companions={companions}
+        officers={officers}
+        onUpdateOfficers={setOfficers}
+        questions={questions}
+        onUpdateQuestions={setQuestions}
+        reports={reports}
+        onUpdateReports={setReports}
+        onLogout={handleFullLogout}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-100 text-slate-900 selection:bg-blue-600 selection:text-white">
       {/* Top Navigation Header */}
@@ -218,6 +253,7 @@ export default function App() {
               onSelectUnit={(val) => handleUpdateForm({ unit: val })}
               onSelectCompanion={(val) => handleUpdateForm({ companion: val })}
               onLogin={handleLogin}
+              onAdminLogin={handleAdminLogin}
               isLoading={isLoadingData}
             />
           )}

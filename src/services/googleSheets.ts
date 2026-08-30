@@ -8,7 +8,9 @@ import {
   SubQuestionItem,
   QuestionItem,
   InspectionFormData,
+  EvidenPhoto,
 } from '../types';
+import { parseGoogleDrivePhoto } from '../utils/photoUtils';
 import { getAuthState, requestGoogleSignIn } from './googleAuth';
 import { GAS_WEB_APP_URL } from './gasConfig';
 
@@ -219,12 +221,14 @@ export async function getSpreadsheetMetadata(): Promise<{ title: string; sheets:
 
     if (!res.ok) {
       if (res.status === 401) {
-        console.warn('Google Access Token expired, clearing session token.');
+        console.log('Google Access Token expired, clearing session token.');
+        localStorage.removeItem('g_access_token');
+        localStorage.removeItem('g_token_expiry');
         sessionStorage.removeItem('g_access_token');
         sessionStorage.removeItem('g_token_expiry');
       } else {
         const errText = await res.text().catch(() => '');
-        console.warn(`Spreadsheet metadata fetch status (${res.status}):`, errText);
+        console.log(`Spreadsheet metadata fetch status (${res.status}):`, errText);
       }
       return null;
     }
@@ -358,15 +362,17 @@ async function fetchSheetValues(targetSheetName: string, alternativeNames: strin
           return data.values;
         }
       } else if (res.status === 401) {
-        console.warn(`Token expired when fetching sheet "${actualTitle}".`);
+        console.log(`Token expired when fetching sheet "${actualTitle}", falling back to public mode.`);
+        localStorage.removeItem('g_access_token');
+        localStorage.removeItem('g_token_expiry');
         sessionStorage.removeItem('g_access_token');
         sessionStorage.removeItem('g_token_expiry');
       } else {
         const errText = await res.text().catch(() => '');
-        console.warn(`Sheet "${actualTitle}" fetch status (${res.status}):`, errText);
+        console.log(`Sheet "${actualTitle}" fetch status (${res.status}):`, errText);
       }
     } catch (err) {
-      console.warn(`Network info: API fetch for sheet ${targetSheetName} failed, trying GViz fallback:`, err);
+      console.log(`Network info: API fetch for sheet ${targetSheetName} failed, trying GViz fallback:`, err);
     }
   }
 
@@ -2041,3 +2047,235 @@ export async function submitInspectionReport(
     };
   }
 }
+
+/**
+ * Read and parse inspection reports from Spreadsheet sheet "LAPORAN_YANTEK"
+ */
+export async function getLaporanYantekFromSpreadsheet(): Promise<InspectionFormData[]> {
+  // If GAS Web App URL is configured, try fetching via GAS
+  if (GAS_WEB_APP_URL && GAS_WEB_APP_URL.startsWith('https://script.google.com')) {
+    try {
+      const response = await fetch(`${GAS_WEB_APP_URL}?action=getReports&sheetName=LAPORAN_YANTEK`);
+      const result = await response.json();
+      if (result && result.success && Array.isArray(result.reports)) {
+        return result.reports;
+      }
+    } catch (e) {
+      console.warn('GAS fetch LAPORAN_YANTEK failed, using sheet fetch fallback:', e);
+    }
+  }
+
+  const rows = await fetchSheetValues('LAPORAN_YANTEK', ['LAPORAN YANTEK', 'LAPORAN_YANTEK_1DWP']);
+  if (!rows || rows.length <= 1) {
+    return [];
+  }
+
+  const headerRow = rows[0].map((h) => (h || '').toLowerCase().trim());
+
+  const idCol = headerRow.findIndex((h) => h.includes('id') || h.includes('kode'));
+  const timestampCol = headerRow.findIndex((h) => h.includes('timestamp') || h.includes('waktu') || h.includes('tanggal'));
+  const divisionCol = headerRow.findIndex((h) => h === 'divisi');
+  const unitCol = headerRow.findIndex((h) => h.includes('unit asal') || h === 'unit' || h === 'ulp');
+  const assistedUnitCol = headerRow.findIndex((h) => h.includes('didampingi'));
+  const companionCol = headerRow.findIndex((h) => h.includes('pendamping'));
+  const officer1Col = headerRow.findIndex((h) => h.includes('petugas 1') || h.includes('petugas yantek 1') || h.includes('petugas manbill 1'));
+  const officer2Col = headerRow.findIndex((h) => h.includes('petugas 2') || h.includes('petugas yantek 2') || h.includes('petugas manbill 2'));
+  const notesCol = headerRow.findIndex((h) => h.includes('catatan') || h.includes('temuan'));
+  const photoCol = headerRow.findIndex((h) => h.includes('foto') || h.includes('eviden') || h.includes('drive'));
+
+  const reports: InspectionFormData[] = [];
+
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r];
+    if (!row || row.length === 0 || row.every((c) => !c || !c.trim())) continue;
+
+    const reportId = idCol !== -1 && row[idCol]?.trim() ? row[idCol].trim() : `RPT-YNT-${r}`;
+    const submittedAt = timestampCol !== -1 && row[timestampCol]?.trim() ? row[timestampCol].trim() : '';
+    const division = divisionCol !== -1 && row[divisionCol]?.trim() ? row[divisionCol].trim() : 'YANTEK';
+    const unit = unitCol !== -1 && row[unitCol]?.trim() ? row[unitCol].trim() : '';
+    const assistedUnit = assistedUnitCol !== -1 && row[assistedUnitCol]?.trim() ? row[assistedUnitCol].trim() : '';
+    const companion = companionCol !== -1 && row[companionCol]?.trim() ? row[companionCol].trim() : '';
+    const officer1 = officer1Col !== -1 && row[officer1Col]?.trim() ? row[officer1Col].trim() : '';
+    const officer2 = officer2Col !== -1 && row[officer2Col]?.trim() ? row[officer2Col].trim() : '';
+    const notesStr = notesCol !== -1 && row[notesCol]?.trim() ? row[notesCol].trim() : '';
+    const photoUrl = photoCol !== -1 && row[photoCol]?.trim() ? row[photoCol].trim() : '';
+
+    const isMetadataHeader = (h: string, colIdx: number): boolean => {
+      // Column G (index 6) to Column AL (index 37) are strictly question columns
+      if (colIdx >= 6 && colIdx <= 37) {
+        return false;
+      }
+      if (
+        colIdx === idCol ||
+        colIdx === timestampCol ||
+        colIdx === divisionCol ||
+        colIdx === unitCol ||
+        colIdx === assistedUnitCol ||
+        colIdx === companionCol ||
+        colIdx === officer1Col ||
+        colIdx === officer2Col ||
+        colIdx === notesCol ||
+        colIdx === photoCol
+      ) {
+        return true;
+      }
+      const clean = h.trim().toLowerCase();
+      if (/^p\d+/i.test(clean) || clean.includes('pertanyaan')) {
+        return false;
+      }
+      if (
+        clean.includes('id') ||
+        clean.includes('waktu') ||
+        clean.includes('tanggal') ||
+        clean.includes('timestamp') ||
+        clean === 'divisi' ||
+        clean.includes('unit') ||
+        clean.includes('ulp') ||
+        clean.includes('pendamping') ||
+        clean.includes('petugas') ||
+        clean.includes('catatan') ||
+        clean.includes('temuan') ||
+        clean.includes('foto') ||
+        clean.includes('eviden') ||
+        clean.includes('drive') ||
+        clean.includes('koordinat') ||
+        clean.includes('gps') ||
+        clean.includes('status') ||
+        clean.includes('email') ||
+        clean === 'no' ||
+        clean === 'no.' ||
+        clean === 'nomor'
+      ) {
+        return true;
+      }
+      return false;
+    };
+
+    const answers: Record<number, 'YA' | 'TIDAK'> = {};
+
+    // 1. Explicitly process Column G (index 6) to Column AL (index 37)
+    for (let colIdx = 6; colIdx <= 37; colIdx++) {
+      if (colIdx < row.length) {
+        const val = (row[colIdx] || '').trim().toUpperCase();
+        const qKey = colIdx - 5; // Question index 1..32
+
+        if (
+          val === 'TIDAK' ||
+          val === 'T' ||
+          val === 'N' ||
+          val === 'NO' ||
+          val === 'TS' ||
+          val === '0' ||
+          val === 'FALSE' ||
+          val === 'RUSAK' ||
+          val === 'TDK' ||
+          val === 'TDAK' ||
+          val.startsWith('TIDAK') ||
+          val.startsWith('TDK') ||
+          val.startsWith('TDAK') ||
+          val.startsWith('TS')
+        ) {
+          answers[qKey] = 'TIDAK';
+        } else if (
+          val === 'YA' ||
+          val === 'Y' ||
+          val === 'ADA' ||
+          val === 'SESUAI' ||
+          val === 'LENGKAP' ||
+          val === 'BAIK' ||
+          val === '1' ||
+          val === 'TRUE' ||
+          val === 'OK' ||
+          val === 'YES' ||
+          val === 'S' ||
+          val.startsWith('YA') ||
+          val.startsWith('SESUAI') ||
+          val.startsWith('ADA') ||
+          val.startsWith('LENGKAP')
+        ) {
+          answers[qKey] = 'YA';
+        }
+      }
+    }
+
+    // 2. Also check any other non-metadata columns for additional/flexible layout
+    headerRow.forEach((h, colIdx) => {
+      if ((colIdx < 6 || colIdx > 37) && !isMetadataHeader(h, colIdx)) {
+        const val = (row[colIdx] || '').trim().toUpperCase();
+        const qNumMatch = h.match(/^p(\d+)/i) || h.match(/(\d+)/);
+        const qKey = qNumMatch ? parseInt(qNumMatch[1], 10) : colIdx;
+
+        if (
+          val === 'TIDAK' ||
+          val === 'T' ||
+          val === 'N' ||
+          val === 'NO' ||
+          val === 'TS' ||
+          val === '0' ||
+          val === 'FALSE' ||
+          val === 'RUSAK' ||
+          val === 'TDK' ||
+          val === 'TDAK' ||
+          val.startsWith('TIDAK') ||
+          val.startsWith('TDK') ||
+          val.startsWith('TDAK') ||
+          val.startsWith('TS')
+        ) {
+          answers[qKey] = 'TIDAK';
+        } else if (
+          val === 'YA' ||
+          val === 'Y' ||
+          val === 'ADA' ||
+          val === 'SESUAI' ||
+          val === 'LENGKAP' ||
+          val === 'BAIK' ||
+          val === '1' ||
+          val === 'TRUE' ||
+          val === 'OK' ||
+          val === 'YES' ||
+          val === 'S' ||
+          val.startsWith('YA') ||
+          val.startsWith('SESUAI') ||
+          val.startsWith('ADA') ||
+          val.startsWith('LENGKAP')
+        ) {
+          answers[qKey] = 'YA';
+        }
+      }
+    });
+
+    const evidenPhotos: EvidenPhoto[] = photoUrl
+      ? photoUrl
+          .split(/[\n,;]+/)
+          .map((u) => u.trim())
+          .filter(Boolean)
+          .map((rawUrl, i) => {
+            const parsed = parseGoogleDrivePhoto(rawUrl);
+            return {
+              id: `photo-${i}`,
+              dataUrl: parsed.displayUrl,
+              driveViewLink: parsed.linkUrl,
+              timestamp: submittedAt || new Date().toISOString(),
+            };
+          })
+      : [];
+
+    reports.push({
+      reportId,
+      submittedAt,
+      division,
+      unit,
+      assistedUnit,
+      companion,
+      officer1,
+      officer2,
+      notes: notesStr ? { 0: notesStr } : {},
+      answers,
+      evidenPhotos,
+      startedAt: submittedAt || new Date().toISOString(),
+    });
+  }
+
+  return reports;
+}
+

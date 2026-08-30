@@ -91,7 +91,7 @@ export interface InspectionFormData {
   submittedAt?: string;
 }
 
-export type AppStep = 'login' | 'assistance' | 'questions' | 'success';
+export type AppStep = 'login' | 'assistance' | 'questions' | 'success' | 'admin-dashboard';
 
 export interface GoogleAuthState {
   isSignedIn: boolean;

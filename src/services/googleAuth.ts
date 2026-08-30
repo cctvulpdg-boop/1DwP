@@ -61,7 +61,19 @@ function notifyListeners() {
   listeners.forEach((fn) => fn({ ...currentAuthState }));
 }
 
+function clearStoredTokens() {
+  localStorage.removeItem('g_access_token');
+  localStorage.removeItem('g_token_expiry');
+  sessionStorage.removeItem('g_access_token');
+  sessionStorage.removeItem('g_token_expiry');
+}
+
 export function getAuthState(): GoogleAuthState {
+  if (currentAuthState.expiresAt && currentAuthState.expiresAt <= Date.now()) {
+    clearStoredTokens();
+    currentAuthState.accessToken = null;
+    currentAuthState.expiresAt = null;
+  }
   return { ...currentAuthState };
 }
 
@@ -77,7 +89,12 @@ export function initGoogleAuth(): Promise<boolean> {
     const savedEmail = localStorage.getItem('g_user_email') || sessionStorage.getItem('g_user_email');
     const savedName = localStorage.getItem('g_user_name') || sessionStorage.getItem('g_user_name');
 
-    if (savedToken && savedExpiry && Number(savedExpiry) > Date.now()) {
+    const isValidToken = savedToken && savedExpiry && Number(savedExpiry) > Date.now();
+    if (!isValidToken && (savedToken || savedExpiry)) {
+      clearStoredTokens();
+    }
+
+    if (isValidToken) {
       currentAuthState = {
         isSignedIn: true,
         accessToken: savedToken,
@@ -91,8 +108,8 @@ export function initGoogleAuth(): Promise<boolean> {
       // Even without explicit OAuth token, the app is connected to Google Sheets via live sync
       currentAuthState = {
         isSignedIn: true,
-        accessToken: savedToken || null,
-        expiresAt: savedExpiry ? Number(savedExpiry) : null,
+        accessToken: null,
+        expiresAt: null,
         userEmail: savedEmail || null,
         userName: savedName || null,
         error: null,
