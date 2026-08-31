@@ -2151,12 +2151,13 @@ export async function getLaporanYantekFromSpreadsheet(): Promise<InspectionFormD
       return false;
     };
 
-    const answers: Record<number, 'YA' | 'TIDAK'> = {};
+    const answers: Record<number, string> = {};
 
     // 1. Explicitly process Column G (index 6) to Column AL (index 37)
     for (let colIdx = 6; colIdx <= 37; colIdx++) {
       if (colIdx < row.length) {
-        const val = (row[colIdx] || '').trim().toUpperCase();
+        const rawVal = (row[colIdx] || '').trim();
+        const val = rawVal.toUpperCase();
         const qKey = colIdx - 5; // Question index 1..32
 
         if (
@@ -2175,7 +2176,7 @@ export async function getLaporanYantekFromSpreadsheet(): Promise<InspectionFormD
           val.startsWith('TDAK') ||
           val.startsWith('TS')
         ) {
-          answers[qKey] = 'TIDAK';
+          answers[qKey] = rawVal;
         } else if (
           val === 'YA' ||
           val === 'Y' ||
@@ -2193,7 +2194,7 @@ export async function getLaporanYantekFromSpreadsheet(): Promise<InspectionFormD
           val.startsWith('ADA') ||
           val.startsWith('LENGKAP')
         ) {
-          answers[qKey] = 'YA';
+          answers[qKey] = rawVal;
         }
       }
     }
@@ -2201,7 +2202,8 @@ export async function getLaporanYantekFromSpreadsheet(): Promise<InspectionFormD
     // 2. Also check any other non-metadata columns for additional/flexible layout
     headerRow.forEach((h, colIdx) => {
       if ((colIdx < 6 || colIdx > 37) && !isMetadataHeader(h, colIdx)) {
-        const val = (row[colIdx] || '').trim().toUpperCase();
+        const rawVal = (row[colIdx] || '').trim();
+        const val = rawVal.toUpperCase();
         const qNumMatch = h.match(/^p(\d+)/i) || h.match(/(\d+)/);
         const qKey = qNumMatch ? parseInt(qNumMatch[1], 10) : colIdx;
 
@@ -2221,7 +2223,7 @@ export async function getLaporanYantekFromSpreadsheet(): Promise<InspectionFormD
           val.startsWith('TDAK') ||
           val.startsWith('TS')
         ) {
-          answers[qKey] = 'TIDAK';
+          answers[qKey] = rawVal;
         } else if (
           val === 'YA' ||
           val === 'Y' ||
@@ -2239,7 +2241,7 @@ export async function getLaporanYantekFromSpreadsheet(): Promise<InspectionFormD
           val.startsWith('ADA') ||
           val.startsWith('LENGKAP')
         ) {
-          answers[qKey] = 'YA';
+          answers[qKey] = rawVal;
         }
       }
     });

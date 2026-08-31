@@ -81,7 +81,7 @@ export interface InspectionFormData {
   officer2: string;
 
   // Questions phase
-  answers: Record<number, 'YA' | 'TIDAK'>;
+  answers: Record<number, 'YA' | 'TIDAK' | string>;
   notes: Record<number, string>;
   evidenPhotos: EvidenPhoto[];
 

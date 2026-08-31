@@ -17,7 +17,15 @@ import {
   HelpCircle,
   AlertCircle,
   RefreshCw,
-  ExternalLink
+  ExternalLink,
+  Trophy,
+  Award,
+  Star,
+  TrendingUp,
+  Filter,
+  Search,
+  Sparkles,
+  Medal
 } from 'lucide-react';
 import { OfficerItem, QuestionItem, InspectionFormData, DivisionType } from '../types';
 import { getLaporanYantekFromSpreadsheet } from '../services/googleSheets';
@@ -48,7 +56,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   reports,
   onUpdateReports,
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'master' | 'reports'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'top-performers' | 'master' | 'reports'>('overview');
+  const [selectedUlpFilter, setSelectedUlpFilter] = useState<string>('SEMUA');
+  const [searchOfficerQuery, setSearchOfficerQuery] = useState<string>('');
 
   // Master Data Sub-tabs: 'officers' | 'questions'
   const [masterSubTab, setMasterSubTab] = useState<'officers' | 'questions'>('officers');
@@ -92,10 +102,202 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   useEffect(() => {
-    if (activeTab === 'reports') {
+    if (activeTab === 'reports' || activeTab === 'top-performers') {
       handleFetchSpreadsheetReports();
     }
   }, [activeTab]);
+
+  // List of available unique ULPs for filtering
+  const availableUlps = React.useMemo(() => {
+    const ulpSet = new Set<string>();
+    units.forEach((u) => u && ulpSet.add(u.trim()));
+    officers.forEach((o) => o.unit && ulpSet.add(o.unit.trim()));
+    reports.forEach((r) => {
+      if (r.unit) ulpSet.add(r.unit.trim());
+      if (r.assistedUnit) ulpSet.add(r.assistedUnit.trim());
+    });
+    return Array.from(ulpSet).filter(Boolean).sort();
+  }, [units, officers, reports]);
+
+  // Helper function to extract numeric rank from answer value
+  const getRankFromAnswer = (val: any): number | null => {
+    if (val === undefined || val === null) return null;
+    const str = String(val).trim();
+    if (!str) return null;
+
+    const rankMatch = str.match(/-\s*(\d+)/);
+    if (rankMatch) {
+      const r = parseInt(rankMatch[1], 10);
+      if (!isNaN(r) && r >= 1 && r <= 10) return r;
+    }
+
+    const num = parseInt(str, 10);
+    if (!isNaN(num) && num >= 1 && num <= 10 && String(num) === str) {
+      return num;
+    }
+
+    const upper = str.toUpperCase();
+    if (upper.startsWith('YA') || upper === '1' || upper === 'TRUE' || upper === 'ADA' || upper === 'SESUAI' || upper === 'LENGKAP') {
+      return 5;
+    }
+    if (upper.startsWith('TIDAK') || upper.startsWith('TDK') || upper === '0' || upper === 'FALSE') {
+      return 1;
+    }
+
+    return null;
+  };
+
+  interface OfficerPerformance {
+    id: string;
+    name: string;
+    unit: string;
+    totalReports: number;
+    totalRankPoints: number;
+    totalRankedQuestions: number;
+    avgRank: number;
+    totalYa: number;
+    totalTidak: number;
+  }
+
+  const officerPerformanceData = React.useMemo(() => {
+    const statsMap = new Map<string, OfficerPerformance>();
+
+    // 1. Register master officers first
+    officers.forEach((off) => {
+      const nameKey = off.name.trim().toLowerCase();
+      if (!nameKey) return;
+      statsMap.set(nameKey, {
+        id: off.id || nameKey,
+        name: off.name.trim(),
+        unit: off.unit || 'ULP PADANG KOTA',
+        totalReports: 0,
+        totalRankPoints: 0,
+        totalRankedQuestions: 0,
+        avgRank: 0,
+        totalYa: 0,
+        totalTidak: 0,
+      });
+    });
+
+    // 2. Accumulate performance scores from all submitted reports
+    reports.forEach((rep) => {
+      const repUnit = rep.assistedUnit || rep.unit || '';
+      const reportOfficers = [rep.officer1, rep.officer2].filter((n) => n && n.trim() !== '');
+
+      let reportRankPoints = 0;
+      let reportRankedQuestions = 0;
+      let reportYa = 0;
+      let reportTidak = 0;
+
+      const answersObj = rep.answers || {};
+      Object.values(answersObj).forEach((ansVal) => {
+        const rank = getRankFromAnswer(ansVal);
+        if (rank !== null) {
+          reportRankPoints += rank;
+          reportRankedQuestions += 1;
+        }
+        const str = String(ansVal).toUpperCase().trim();
+        if (str.startsWith('YA') || str === '1' || str === 'TRUE' || str === 'ADA' || str === 'SESUAI') {
+          reportYa += 1;
+        } else if (str.startsWith('TIDAK') || str.startsWith('TDK') || str === '0' || str === 'FALSE') {
+          reportTidak += 1;
+        }
+      });
+
+      // Fallback check report properties if answers dictionary was empty
+      if (reportRankedQuestions === 0 && rep) {
+        Object.entries(rep).forEach(([k, v]) => {
+          const lk = k.toLowerCase();
+          const isMeta =
+            lk.includes('id') ||
+            lk.includes('time') ||
+            lk.includes('date') ||
+            lk.includes('waktu') ||
+            lk.includes('tanggal') ||
+            lk.includes('unit') ||
+            lk.includes('divis') ||
+            lk.includes('companion') ||
+            lk.includes('pendamping') ||
+            lk.includes('officer') ||
+            lk.includes('petugas') ||
+            lk.includes('note') ||
+            lk.includes('catatan') ||
+            lk.includes('photo') ||
+            lk.includes('foto') ||
+            lk.includes('eviden') ||
+            lk.includes('answers') ||
+            lk.includes('startedat') ||
+            lk.includes('submittedat');
+
+          if (!isMeta) {
+            const rank = getRankFromAnswer(v);
+            if (rank !== null) {
+              reportRankPoints += rank;
+              reportRankedQuestions += 1;
+            }
+          }
+        });
+      }
+
+      reportOfficers.forEach((officerName) => {
+        const cleanName = officerName.trim();
+        const nameKey = cleanName.toLowerCase();
+
+        let stat = statsMap.get(nameKey);
+        if (!stat) {
+          stat = {
+            id: `off-rep-${nameKey}`,
+            name: cleanName,
+            unit: repUnit || 'ULP PADANG KOTA',
+            totalReports: 0,
+            totalRankPoints: 0,
+            totalRankedQuestions: 0,
+            avgRank: 0,
+            totalYa: 0,
+            totalTidak: 0,
+          };
+          statsMap.set(nameKey, stat);
+        } else if (repUnit && (!stat.unit || stat.unit === 'ULP PADANG KOTA')) {
+          stat.unit = repUnit;
+        }
+
+        stat.totalReports += 1;
+        stat.totalRankPoints += reportRankPoints;
+        stat.totalRankedQuestions += reportRankedQuestions;
+        stat.totalYa += reportYa;
+        stat.totalTidak += reportTidak;
+      });
+    });
+
+    const resultList: OfficerPerformance[] = [];
+    statsMap.forEach((stat) => {
+      const avg = stat.totalRankedQuestions > 0 ? stat.totalRankPoints / stat.totalRankedQuestions : 0;
+      resultList.push({
+        ...stat,
+        avgRank: Number(avg.toFixed(2)),
+      });
+    });
+
+    return resultList;
+  }, [officers, reports]);
+
+  const filteredOfficerPerformance = React.useMemo(() => {
+    return officerPerformanceData
+      .filter((off) => {
+        const matchUlp =
+          selectedUlpFilter === 'SEMUA' ||
+          off.unit.toUpperCase().includes(selectedUlpFilter.toUpperCase());
+        const matchSearch =
+          !searchOfficerQuery.trim() ||
+          off.name.toLowerCase().includes(searchOfficerQuery.toLowerCase());
+        return matchUlp && matchSearch;
+      })
+      .sort((a, b) => {
+        if (b.avgRank !== a.avgRank) return b.avgRank - a.avgRank;
+        if (b.totalReports !== a.totalReports) return b.totalReports - a.totalReports;
+        return a.name.localeCompare(b.name);
+      });
+  }, [officerPerformanceData, selectedUlpFilter, searchOfficerQuery]);
 
   // --- OFFICER HANDLERS ---
   const handleOpenAddOfficer = () => {
@@ -277,6 +479,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <Users className="w-4 h-4" />
             <span>Ringkasan Master Data</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('top-performers')}
+            className={`px-4 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+              activeTab === 'top-performers'
+                ? 'bg-amber-500 text-white shadow-md shadow-amber-500/30'
+                : 'bg-white text-slate-600 hover:bg-slate-200 border border-slate-200'
+            }`}
+          >
+            <Trophy className="w-4 h-4 text-amber-300" />
+            <span>Top Performa Petugas</span>
+          </button>
           
           <button
             onClick={() => setActiveTab('master')}
@@ -377,6 +591,333 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
                   ))}
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: TOP PERFORMA PETUGAS */}
+        {activeTab === 'top-performers' && (
+          <div className="space-y-6">
+            {/* Header & Filter Bar */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-yellow-400 text-white flex items-center justify-center shadow-lg shadow-amber-500/30">
+                    <Trophy className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg sm:text-xl font-black text-slate-900 flex items-center gap-2">
+                      <span>Top Performa Petugas Yantek</span>
+                      <span className="text-xs bg-amber-100 text-amber-800 font-extrabold px-2.5 py-0.5 rounded-full border border-amber-300">
+                        Skor Rata-Rata Rank (1 - 10)
+                      </span>
+                    </h2>
+                    <p className="text-xs text-slate-500 font-medium">
+                      Peringkat dan penilaian rata-rata berdasarkan Nilai Rank kuesioner pendampingan petugas.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleFetchSpreadsheetReports}
+                  disabled={isLoadingReports}
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow transition disabled:opacity-50 cursor-pointer self-start md:self-auto"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isLoadingReports ? 'animate-spin' : ''}`} />
+                  <span>{isLoadingReports ? 'Memuat Data...' : 'Refresh Nilai Rank'}</span>
+                </button>
+              </div>
+
+              {/* Filters & Search */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+                {/* ULP Filter */}
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
+                    <Filter className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Filter Unit / ULP:</span>
+                  </label>
+                  <select
+                    value={selectedUlpFilter}
+                    onChange={(e) => setSelectedUlpFilter(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition cursor-pointer"
+                  >
+                    <option value="SEMUA">-- SEMUA ULP ({availableUlps.length} Unit) --</option>
+                    {availableUlps.map((u, i) => (
+                      <option key={i} value={u}>
+                        {u}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Officer Search */}
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
+                    <Search className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Cari Nama Petugas:</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={searchOfficerQuery}
+                    onChange={(e) => setSearchOfficerQuery(e.target.value)}
+                    placeholder="Ketik nama petugas..."
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs sm:text-sm font-medium text-slate-800 focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition"
+                  />
+                </div>
+
+                {/* Stat quick summary */}
+                <div className="sm:col-span-2 lg:col-span-1 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/80 rounded-xl p-2.5 flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[11px] font-bold text-blue-700 uppercase">Total Petugas Evaluasi</div>
+                    <div className="text-lg font-black text-blue-950">{filteredOfficerPerformance.length} Orang</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[11px] font-bold text-indigo-700 uppercase">Filter ULP Aktif</div>
+                    <div className="text-xs font-black text-indigo-900 truncate max-w-[140px]">{selectedUlpFilter}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Podium Top 3 Performers */}
+            {filteredOfficerPerformance.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* RANK 2 - SILVER */}
+                {filteredOfficerPerformance[1] && (
+                  <div className="order-2 md:order-1 bg-white rounded-2xl border-2 border-slate-200 p-5 shadow-sm relative overflow-hidden flex flex-col justify-between">
+                    <div className="absolute top-0 right-0 bg-slate-200 text-slate-700 font-black text-xs px-3 py-1 rounded-bl-xl border-l border-b border-slate-300">
+                      RANK #2
+                    </div>
+                    <div>
+                      <div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center font-black text-lg mb-3 shadow-inner border border-slate-300">
+                        🥈
+                      </div>
+                      <span className="inline-block text-[10px] font-black tracking-wider uppercase bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md mb-1">
+                        JUARA 2 PERFORMA
+                      </span>
+                      <h3 className="text-lg font-black text-slate-900 leading-tight">
+                        {filteredOfficerPerformance[1].name}
+                      </h3>
+                      <p className="text-xs text-slate-500 font-bold mt-0.5">
+                        {filteredOfficerPerformance[1].unit}
+                      </p>
+                    </div>
+
+                    <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
+                      <div>
+                        <div className="text-[10px] font-bold text-slate-400 uppercase">Total Pendampingan</div>
+                        <div className="text-sm font-extrabold text-slate-800">
+                          {filteredOfficerPerformance[1].totalReports} Laporan
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[10px] font-bold text-slate-400 uppercase">Rata-Rata Rank</div>
+                        <div className="text-xl font-black text-slate-700 flex items-center gap-1 justify-end">
+                          <Star className="w-4 h-4 fill-amber-400 text-amber-500" />
+                          <span>{filteredOfficerPerformance[1].avgRank}</span>
+                          <span className="text-xs font-bold text-slate-400">/10</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* RANK 1 - GOLD */}
+                {filteredOfficerPerformance[0] && (
+                  <div className="order-1 md:order-2 bg-gradient-to-b from-amber-500 via-amber-600 to-yellow-600 text-white rounded-2xl p-6 shadow-xl relative overflow-hidden flex flex-col justify-between scale-105 z-10 border-2 border-yellow-300">
+                    <div className="absolute top-0 right-0 bg-yellow-300 text-yellow-950 font-black text-xs px-4 py-1.5 rounded-bl-xl shadow-md">
+                      👑 RANK #1
+                    </div>
+                    <div>
+                      <div className="w-14 h-14 rounded-2xl bg-yellow-400/30 text-yellow-200 flex items-center justify-center font-black text-2xl mb-3 shadow-inner border border-yellow-300/40">
+                        🏆
+                      </div>
+                      <span className="inline-block text-[10px] font-black tracking-widest uppercase bg-yellow-300 text-yellow-950 px-2.5 py-0.5 rounded-md mb-1.5 shadow-sm">
+                        PERFORMA TERBAIK #1
+                      </span>
+                      <h3 className="text-xl sm:text-2xl font-black text-white leading-tight drop-shadow-sm">
+                        {filteredOfficerPerformance[0].name}
+                      </h3>
+                      <p className="text-xs text-yellow-100 font-bold mt-1">
+                        {filteredOfficerPerformance[0].unit}
+                      </p>
+                    </div>
+
+                    <div className="mt-6 pt-4 border-t border-yellow-400/40 flex items-center justify-between">
+                      <div>
+                        <div className="text-[10px] font-bold text-yellow-200 uppercase">Total Pendampingan</div>
+                        <div className="text-base font-black text-white">
+                          {filteredOfficerPerformance[0].totalReports} Laporan
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[10px] font-bold text-yellow-200 uppercase">Rata-Rata Rank</div>
+                        <div className="text-2xl font-black text-yellow-300 flex items-center gap-1 justify-end drop-shadow">
+                          <Star className="w-5 h-5 fill-yellow-300 text-yellow-200" />
+                          <span>{filteredOfficerPerformance[0].avgRank}</span>
+                          <span className="text-xs font-bold text-yellow-200">/10</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* RANK 3 - BRONZE */}
+                {filteredOfficerPerformance[2] && (
+                  <div className="order-3 bg-white rounded-2xl border-2 border-slate-200 p-5 shadow-sm relative overflow-hidden flex flex-col justify-between">
+                    <div className="absolute top-0 right-0 bg-amber-100 text-amber-800 font-black text-xs px-3 py-1 rounded-bl-xl border-l border-b border-amber-200">
+                      RANK #3
+                    </div>
+                    <div>
+                      <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center font-black text-lg mb-3 shadow-inner border border-amber-200">
+                        🥉
+                      </div>
+                      <span className="inline-block text-[10px] font-black tracking-wider uppercase bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md mb-1">
+                        JUARA 3 PERFORMA
+                      </span>
+                      <h3 className="text-lg font-black text-slate-900 leading-tight">
+                        {filteredOfficerPerformance[2].name}
+                      </h3>
+                      <p className="text-xs text-slate-500 font-bold mt-0.5">
+                        {filteredOfficerPerformance[2].unit}
+                      </p>
+                    </div>
+
+                    <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
+                      <div>
+                        <div className="text-[10px] font-bold text-slate-400 uppercase">Total Pendampingan</div>
+                        <div className="text-sm font-extrabold text-slate-800">
+                          {filteredOfficerPerformance[2].totalReports} Laporan
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[10px] font-bold text-slate-400 uppercase">Rata-Rata Rank</div>
+                        <div className="text-xl font-black text-amber-700 flex items-center gap-1 justify-end">
+                          <Star className="w-4 h-4 fill-amber-400 text-amber-500" />
+                          <span>{filteredOfficerPerformance[2].avgRank}</span>
+                          <span className="text-xs font-bold text-slate-400">/10</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Complete Leaderboard Table */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-800 flex items-center gap-2">
+                    <Award className="w-5 h-5 text-blue-600" />
+                    <span>Daftar Klasemen Performa Petugas</span>
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Nilai rata-rata dihitung dari akumulasi Nilai Rank kuesioner pada setiap sesi pendampingan.
+                  </p>
+                </div>
+                <span className="text-xs font-bold bg-slate-100 text-slate-700 px-3 py-1 rounded-lg">
+                  Total: {filteredOfficerPerformance.length} Petugas
+                </span>
+              </div>
+
+              <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <table className="w-full text-left border-collapse text-xs sm:text-sm">
+                  <thead>
+                    <tr className="bg-slate-100 text-slate-700 uppercase font-bold tracking-wider text-[11px]">
+                      <th className="p-3.5 text-center">POSISI</th>
+                      <th className="p-3.5">NAMA PETUGAS</th>
+                      <th className="p-3.5">UNIT / ULP</th>
+                      <th className="p-3.5 text-center">PENDAMPINGAN</th>
+                      <th className="p-3.5 text-center">SOAL DINILAI</th>
+                      <th className="p-3.5 text-center">RATA-RATA RANK</th>
+                      <th className="p-3.5 text-center">PREDIKAT</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {filteredOfficerPerformance.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="text-center py-12 text-slate-400 font-medium">
+                          Tidak ditemukan data petugas untuk filter yang dipilih.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredOfficerPerformance.map((item, index) => {
+                        const rankPos = index + 1;
+                        let badgeColor = 'bg-slate-100 text-slate-600 border-slate-200';
+                        let predikatText = 'Belum Dinilai';
+
+                        if (item.avgRank >= 8.5) {
+                          badgeColor = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+                          predikatText = 'Sangat Baik';
+                        } else if (item.avgRank >= 7.0) {
+                          badgeColor = 'bg-blue-100 text-blue-800 border-blue-300';
+                          predikatText = 'Baik';
+                        } else if (item.avgRank >= 5.0) {
+                          badgeColor = 'bg-amber-100 text-amber-800 border-amber-300';
+                          predikatText = 'Cukup';
+                        } else if (item.avgRank > 0) {
+                          badgeColor = 'bg-rose-100 text-rose-800 border-rose-300';
+                          predikatText = 'Perlu Evaluasi';
+                        }
+
+                        return (
+                          <tr key={item.id || index} className="hover:bg-slate-50 transition">
+                            <td className="p-3.5 text-center font-black">
+                              {rankPos === 1 ? (
+                                <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-yellow-400 text-yellow-950 font-black text-xs shadow-sm">
+                                  1
+                                </span>
+                              ) : rankPos === 2 ? (
+                                <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-300 text-slate-900 font-black text-xs shadow-sm">
+                                  2
+                                </span>
+                              ) : rankPos === 3 ? (
+                                <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-600 text-white font-black text-xs shadow-sm">
+                                  3
+                                </span>
+                              ) : (
+                                <span className="text-slate-500 font-bold">#{rankPos}</span>
+                              )}
+                            </td>
+                            <td className="p-3.5">
+                              <div className="font-bold text-slate-900">{item.name}</div>
+                              {item.totalReports > 0 && (
+                                <div className="text-[10px] text-slate-400 font-medium">
+                                  {item.totalYa} YA • {item.totalTidak} TIDAK
+                                </div>
+                              )}
+                            </td>
+                            <td className="p-3.5 font-semibold text-slate-700">
+                              <span className="bg-slate-100 text-slate-800 px-2.5 py-1 rounded-md text-xs border border-slate-200">
+                                {item.unit}
+                              </span>
+                            </td>
+                            <td className="p-3.5 text-center font-extrabold text-slate-800">
+                              {item.totalReports} Laporan
+                            </td>
+                            <td className="p-3.5 text-center font-semibold text-slate-600">
+                              {item.totalRankedQuestions} Soal
+                            </td>
+                            <td className="p-3.5 text-center">
+                              <div className="inline-flex items-center gap-1 bg-amber-50 text-amber-900 border border-amber-300 px-3 py-1 rounded-xl font-black text-sm">
+                                <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
+                                <span>{item.avgRank > 0 ? item.avgRank : '-'}</span>
+                                <span className="text-[10px] text-amber-700 font-bold">/10</span>
+                              </div>
+                            </td>
+                            <td className="p-3.5 text-center">
+                              <span className={`inline-block text-xs font-bold px-3 py-1 rounded-lg border ${badgeColor}`}>
+                                {predikatText}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
