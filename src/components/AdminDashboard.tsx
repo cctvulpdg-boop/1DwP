@@ -22,6 +22,9 @@ import {
   Award,
   Star,
   TrendingUp,
+  TrendingDown,
+  AlertTriangle,
+  ShieldAlert,
   Filter,
   Search,
   Sparkles,
@@ -56,7 +59,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   reports,
   onUpdateReports,
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'top-performers' | 'master' | 'reports'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'top-performers' | 'bottom-performers' | 'master' | 'reports'>('overview');
   const [selectedUlpFilter, setSelectedUlpFilter] = useState<string>('SEMUA');
   const [searchOfficerQuery, setSearchOfficerQuery] = useState<string>('');
 
@@ -102,7 +105,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   useEffect(() => {
-    if (activeTab === 'reports' || activeTab === 'top-performers') {
+    if (activeTab === 'reports' || activeTab === 'top-performers' || activeTab === 'bottom-performers') {
       handleFetchSpreadsheetReports();
     }
   }, [activeTab]);
@@ -299,6 +302,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       });
   }, [officerPerformanceData, selectedUlpFilter, searchOfficerQuery]);
 
+  const filteredBottomOfficerPerformance = React.useMemo(() => {
+    return officerPerformanceData
+      .filter((off) => {
+        const matchUlp =
+          selectedUlpFilter === 'SEMUA' ||
+          off.unit.toUpperCase().includes(selectedUlpFilter.toUpperCase());
+        const matchSearch =
+          !searchOfficerQuery.trim() ||
+          off.name.toLowerCase().includes(searchOfficerQuery.toLowerCase());
+        return matchUlp && matchSearch;
+      })
+      .sort((a, b) => {
+        // Ascending sort by average rank (lowest score first)
+        if (a.avgRank !== b.avgRank) return a.avgRank - b.avgRank;
+        if (b.totalReports !== a.totalReports) return b.totalReports - a.totalReports;
+        return a.name.localeCompare(b.name);
+      });
+  }, [officerPerformanceData, selectedUlpFilter, searchOfficerQuery]);
+
   // --- OFFICER HANDLERS ---
   const handleOpenAddOfficer = () => {
     setEditingOfficerIndex(null);
@@ -490,6 +512,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           >
             <Trophy className="w-4 h-4 text-amber-300" />
             <span>Top Performa Petugas</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('bottom-performers')}
+            className={`px-4 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+              activeTab === 'bottom-performers'
+                ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30'
+                : 'bg-white text-slate-600 hover:bg-slate-200 border border-slate-200'
+            }`}
+          >
+            <TrendingDown className="w-4 h-4 text-rose-300" />
+            <span>Bottom Performa Petugas</span>
           </button>
           
           <button
@@ -905,6 +939,321 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                 <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
                                 <span>{item.avgRank > 0 ? item.avgRank : '-'}</span>
                                 <span className="text-[10px] text-amber-700 font-bold">/10</span>
+                              </div>
+                            </td>
+                            <td className="p-3.5 text-center">
+                              <span className={`inline-block text-xs font-bold px-3 py-1 rounded-lg border ${badgeColor}`}>
+                                {predikatText}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: BOTTOM PERFORMA PETUGAS */}
+        {activeTab === 'bottom-performers' && (
+          <div className="space-y-6">
+            {/* Header & Filter Bar */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-rose-600 to-red-500 text-white flex items-center justify-center shadow-lg shadow-rose-600/30">
+                    <TrendingDown className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg sm:text-xl font-black text-slate-900 flex items-center gap-2">
+                      <span>Bottom Performa Petugas Yantek</span>
+                      <span className="text-xs bg-rose-100 text-rose-800 font-extrabold px-2.5 py-0.5 rounded-full border border-rose-300">
+                        Skor Rank Terendah (1 - 10)
+                      </span>
+                    </h2>
+                    <p className="text-xs text-slate-500 font-medium">
+                      Evaluasi petugas dengan rata-rata Nilai Rank terendah untuk prioritas pembinaan dan peningkatan kinerja.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleFetchSpreadsheetReports}
+                  disabled={isLoadingReports}
+                  className="flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow transition disabled:opacity-50 cursor-pointer self-start md:self-auto"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isLoadingReports ? 'animate-spin' : ''}`} />
+                  <span>{isLoadingReports ? 'Memuat Data...' : 'Refresh Nilai Rank'}</span>
+                </button>
+              </div>
+
+              {/* Filters & Search */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+                {/* ULP Filter */}
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
+                    <Filter className="w-3.5 h-3.5 text-rose-600" />
+                    <span>Filter Unit / ULP:</span>
+                  </label>
+                  <select
+                    value={selectedUlpFilter}
+                    onChange={(e) => setSelectedUlpFilter(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:ring-2 focus:ring-rose-500 focus:bg-white outline-none transition cursor-pointer"
+                  >
+                    <option value="SEMUA">-- SEMUA ULP ({availableUlps.length} Unit) --</option>
+                    {availableUlps.map((u, i) => (
+                      <option key={i} value={u}>
+                        {u}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Officer Search */}
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
+                    <Search className="w-3.5 h-3.5 text-rose-600" />
+                    <span>Cari Nama Petugas:</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={searchOfficerQuery}
+                    onChange={(e) => setSearchOfficerQuery(e.target.value)}
+                    placeholder="Ketik nama petugas..."
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs sm:text-sm font-medium text-slate-800 focus:ring-2 focus:ring-rose-500 focus:bg-white outline-none transition"
+                  />
+                </div>
+
+                {/* Stat quick summary */}
+                <div className="sm:col-span-2 lg:col-span-1 bg-gradient-to-r from-rose-50 to-red-50 border border-rose-200/80 rounded-xl p-2.5 flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[11px] font-bold text-rose-700 uppercase">Total Petugas Ditemukan</div>
+                    <div className="text-lg font-black text-rose-950">{filteredBottomOfficerPerformance.length} Orang</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[11px] font-bold text-red-700 uppercase">Filter ULP Aktif</div>
+                    <div className="text-xs font-black text-red-900 truncate max-w-[140px]">{selectedUlpFilter}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Spotlight 3 Lowest Performers */}
+            {filteredBottomOfficerPerformance.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* BOTTOM 1 - LOWEST RANK */}
+                {filteredBottomOfficerPerformance[0] && (
+                  <div className="bg-gradient-to-b from-rose-50 to-red-100 rounded-2xl border-2 border-rose-400 p-5 shadow-md relative overflow-hidden flex flex-col justify-between">
+                    <div className="absolute top-0 right-0 bg-rose-600 text-white font-black text-[11px] px-3 py-1 rounded-bl-xl shadow-sm">
+                      EVALUASI UTAMA #1
+                    </div>
+                    <div>
+                      <div className="w-12 h-12 rounded-xl bg-rose-600 text-white flex items-center justify-center font-black text-lg mb-3 shadow-md">
+                        <ShieldAlert className="w-6 h-6" />
+                      </div>
+                      <span className="inline-block text-[10px] font-black tracking-wider uppercase bg-rose-200 text-rose-900 px-2 py-0.5 rounded-md mb-1 border border-rose-300">
+                        NILAI RANK TERENDAH #1
+                      </span>
+                      <h3 className="text-lg font-black text-slate-900 leading-tight">
+                        {filteredBottomOfficerPerformance[0].name}
+                      </h3>
+                      <p className="text-xs text-rose-800 font-bold mt-0.5">
+                        {filteredBottomOfficerPerformance[0].unit}
+                      </p>
+                    </div>
+
+                    <div className="mt-4 pt-4 border-t border-rose-200 flex items-center justify-between">
+                      <div>
+                        <div className="text-[10px] font-bold text-slate-500 uppercase">Total Pendampingan</div>
+                        <div className="text-sm font-extrabold text-slate-800">
+                          {filteredBottomOfficerPerformance[0].totalReports} Laporan
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[10px] font-bold text-slate-500 uppercase">Rata-Rata Rank</div>
+                        <div className="text-xl font-black text-rose-700 flex items-center gap-1 justify-end">
+                          <Star className="w-4 h-4 fill-rose-500 text-rose-600" />
+                          <span>{filteredBottomOfficerPerformance[0].avgRank}</span>
+                          <span className="text-xs font-bold text-slate-500">/10</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* BOTTOM 2 */}
+                {filteredBottomOfficerPerformance[1] && (
+                  <div className="bg-gradient-to-b from-amber-50 to-orange-100 rounded-2xl border-2 border-amber-300 p-5 shadow-sm relative overflow-hidden flex flex-col justify-between">
+                    <div className="absolute top-0 right-0 bg-amber-600 text-white font-black text-[11px] px-3 py-1 rounded-bl-xl shadow-sm">
+                      EVALUASI #2
+                    </div>
+                    <div>
+                      <div className="w-12 h-12 rounded-xl bg-amber-500 text-white flex items-center justify-center font-black text-lg mb-3 shadow-md">
+                        <AlertTriangle className="w-6 h-6" />
+                      </div>
+                      <span className="inline-block text-[10px] font-black tracking-wider uppercase bg-amber-200 text-amber-900 px-2 py-0.5 rounded-md mb-1 border border-amber-300">
+                        NILAI RANK TERENDAH #2
+                      </span>
+                      <h3 className="text-lg font-black text-slate-900 leading-tight">
+                        {filteredBottomOfficerPerformance[1].name}
+                      </h3>
+                      <p className="text-xs text-amber-800 font-bold mt-0.5">
+                        {filteredBottomOfficerPerformance[1].unit}
+                      </p>
+                    </div>
+
+                    <div className="mt-4 pt-4 border-t border-amber-200 flex items-center justify-between">
+                      <div>
+                        <div className="text-[10px] font-bold text-slate-500 uppercase">Total Pendampingan</div>
+                        <div className="text-sm font-extrabold text-slate-800">
+                          {filteredBottomOfficerPerformance[1].totalReports} Laporan
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[10px] font-bold text-slate-500 uppercase">Rata-Rata Rank</div>
+                        <div className="text-xl font-black text-amber-800 flex items-center gap-1 justify-end">
+                          <Star className="w-4 h-4 fill-amber-500 text-amber-600" />
+                          <span>{filteredBottomOfficerPerformance[1].avgRank}</span>
+                          <span className="text-xs font-bold text-slate-500">/10</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* BOTTOM 3 */}
+                {filteredBottomOfficerPerformance[2] && (
+                  <div className="bg-gradient-to-b from-slate-50 to-slate-100 rounded-2xl border-2 border-slate-300 p-5 shadow-sm relative overflow-hidden flex flex-col justify-between">
+                    <div className="absolute top-0 right-0 bg-slate-600 text-white font-black text-[11px] px-3 py-1 rounded-bl-xl shadow-sm">
+                      EVALUASI #3
+                    </div>
+                    <div>
+                      <div className="w-12 h-12 rounded-xl bg-slate-700 text-white flex items-center justify-center font-black text-lg mb-3 shadow-md">
+                        <AlertCircle className="w-6 h-6" />
+                      </div>
+                      <span className="inline-block text-[10px] font-black tracking-wider uppercase bg-slate-200 text-slate-800 px-2 py-0.5 rounded-md mb-1 border border-slate-300">
+                        NILAI RANK TERENDAH #3
+                      </span>
+                      <h3 className="text-lg font-black text-slate-900 leading-tight">
+                        {filteredBottomOfficerPerformance[2].name}
+                      </h3>
+                      <p className="text-xs text-slate-600 font-bold mt-0.5">
+                        {filteredBottomOfficerPerformance[2].unit}
+                      </p>
+                    </div>
+
+                    <div className="mt-4 pt-4 border-t border-slate-200 flex items-center justify-between">
+                      <div>
+                        <div className="text-[10px] font-bold text-slate-500 uppercase">Total Pendampingan</div>
+                        <div className="text-sm font-extrabold text-slate-800">
+                          {filteredBottomOfficerPerformance[2].totalReports} Laporan
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[10px] font-bold text-slate-500 uppercase">Rata-Rata Rank</div>
+                        <div className="text-xl font-black text-slate-700 flex items-center gap-1 justify-end">
+                          <Star className="w-4 h-4 fill-slate-400 text-slate-500" />
+                          <span>{filteredBottomOfficerPerformance[2].avgRank}</span>
+                          <span className="text-xs font-bold text-slate-500">/10</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Complete Bottom Performance Table */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-800 flex items-center gap-2">
+                    <TrendingDown className="w-5 h-5 text-rose-600" />
+                    <span>Urutan Evaluasi Bottom Performa Petugas (Dari Nilai Terendah)</span>
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Tabel disusun urut dari Nilai Rank rata-rata paling rendah ke yang lebih tinggi.
+                  </p>
+                </div>
+                <span className="text-xs font-bold bg-rose-50 text-rose-800 border border-rose-200 px-3 py-1 rounded-lg">
+                  Total: {filteredBottomOfficerPerformance.length} Petugas
+                </span>
+              </div>
+
+              <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <table className="w-full text-left border-collapse text-xs sm:text-sm">
+                  <thead>
+                    <tr className="bg-slate-100 text-slate-700 uppercase font-bold tracking-wider text-[11px]">
+                      <th className="p-3.5 text-center">POSISI EVALUASI</th>
+                      <th className="p-3.5">NAMA PETUGAS</th>
+                      <th className="p-3.5">UNIT / ULP</th>
+                      <th className="p-3.5 text-center">PENDAMPINGAN</th>
+                      <th className="p-3.5 text-center">SOAL DINILAI</th>
+                      <th className="p-3.5 text-center">RATA-RATA RANK</th>
+                      <th className="p-3.5 text-center">PREDIKAT & STATUS</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {filteredBottomOfficerPerformance.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="text-center py-12 text-slate-400 font-medium">
+                          Tidak ditemukan data petugas untuk filter yang dipilih.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredBottomOfficerPerformance.map((item, index) => {
+                        const rankPos = index + 1;
+                        let badgeColor = 'bg-slate-100 text-slate-600 border-slate-200';
+                        let predikatText = 'Belum Dinilai';
+
+                        if (item.avgRank > 0 && item.avgRank < 5.0) {
+                          badgeColor = 'bg-rose-100 text-rose-800 border-rose-300';
+                          predikatText = 'Perlu Evaluasi Ketat';
+                        } else if (item.avgRank >= 5.0 && item.avgRank < 7.0) {
+                          badgeColor = 'bg-amber-100 text-amber-800 border-amber-300';
+                          predikatText = 'Perlu Pembinaan';
+                        } else if (item.avgRank >= 7.0 && item.avgRank < 8.5) {
+                          badgeColor = 'bg-blue-100 text-blue-800 border-blue-300';
+                          predikatText = 'Baik';
+                        } else if (item.avgRank >= 8.5) {
+                          badgeColor = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+                          predikatText = 'Sangat Baik';
+                        }
+
+                        return (
+                          <tr key={item.id || index} className="hover:bg-slate-50 transition">
+                            <td className="p-3.5 text-center font-black">
+                              <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-lg bg-rose-50 text-rose-800 border border-rose-200 font-extrabold text-xs">
+                                Terendah #{rankPos}
+                              </span>
+                            </td>
+                            <td className="p-3.5">
+                              <div className="font-bold text-slate-900">{item.name}</div>
+                              {item.totalReports > 0 && (
+                                <div className="text-[10px] text-slate-400 font-medium">
+                                  {item.totalYa} YA • {item.totalTidak} TIDAK
+                                </div>
+                              )}
+                            </td>
+                            <td className="p-3.5 font-semibold text-slate-700">
+                              <span className="bg-slate-100 text-slate-800 px-2.5 py-1 rounded-md text-xs border border-slate-200">
+                                {item.unit}
+                              </span>
+                            </td>
+                            <td className="p-3.5 text-center font-extrabold text-slate-800">
+                              {item.totalReports} Laporan
+                            </td>
+                            <td className="p-3.5 text-center font-semibold text-slate-600">
+                              {item.totalRankedQuestions} Soal
+                            </td>
+                            <td className="p-3.5 text-center">
+                              <div className="inline-flex items-center gap-1 bg-rose-50 text-rose-900 border border-rose-300 px-3 py-1 rounded-xl font-black text-sm">
+                                <Star className="w-3.5 h-3.5 fill-rose-400 text-rose-500" />
+                                <span>{item.avgRank > 0 ? item.avgRank : '-'}</span>
+                                <span className="text-[10px] text-rose-700 font-bold">/10</span>
                               </div>
                             </td>
                             <td className="p-3.5 text-center">
