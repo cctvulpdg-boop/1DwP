@@ -184,33 +184,45 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35 }}
-      className="w-full max-w-md mx-auto px-4 py-6 sm:py-10"
-    >
-      {/* Welcome Card & Logo */}
-      <div className="text-center mb-6">
-        <div className="inline-flex items-center justify-center w-44 h-44 sm:w-52 sm:h-52 mb-2 drop-shadow-xl overflow-hidden">
-          <img
-            src="https://lh3.googleusercontent.com/d/1HGB_XQgMAG99kFWvUFNptJv6F319KX6_"
-            alt="1DwP Logo"
-            className="w-full h-full object-contain"
-            onError={(e) => {
-              (e.target as HTMLElement).style.display = 'none';
-            }}
-          />
-        </div>
-        <p className="text-sm text-slate-600 font-semibold mt-2">
-          Silakan pilih Unit, Divisi, dan Nama Pendamping untuk memulai
-        </p>
+    <div className="relative w-full min-h-[calc(100vh-80px)] flex items-center justify-center p-4 overflow-hidden rounded-2xl my-2">
+      {/* Background Image Layer */}
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0"
+        style={{
+          backgroundImage: `url('https://lh3.googleusercontent.com/d/1nD5vYTNAeuOWyN2nWayd5dSott-15Qi_')`,
+        }}
+      >
+        {/* Backdrop Overlay for readability */}
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-900/60 via-slate-900/40 to-slate-950/70 backdrop-blur-[2px]" />
       </div>
 
-      {/* Main Login Form Card */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xl shadow-slate-200/50 p-6 sm:p-7 relative overflow-hidden">
-        {/* Subtle Top Accent */}
-        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-600 via-cyan-500 to-blue-600" />
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35 }}
+        className="relative z-10 w-full max-w-md mx-auto py-4 sm:py-6"
+      >
+        {/* Welcome Card & Logo */}
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center justify-center w-40 h-40 sm:w-48 sm:h-48 mb-1 drop-shadow-2xl overflow-hidden bg-white/80 backdrop-blur-md rounded-full p-2 border border-white/40">
+            <img
+              src="https://lh3.googleusercontent.com/d/1HGB_XQgMAG99kFWvUFNptJv6F319KX6_"
+              alt="1DwP Logo"
+              className="w-full h-full object-contain"
+              onError={(e) => {
+                (e.target as HTMLElement).style.display = 'none';
+              }}
+            />
+          </div>
+          <p className="text-sm text-white font-bold mt-2 drop-shadow-md bg-slate-900/50 backdrop-blur-md py-1.5 px-4 rounded-full inline-block border border-white/20">
+            Silakan pilih Unit, Divisi, dan Nama Pendamping untuk memulai
+          </p>
+        </div>
+
+        {/* Main Login Form Card */}
+        <div className="bg-white/95 backdrop-blur-xl border border-white/60 rounded-2xl shadow-2xl shadow-slate-950/50 p-6 sm:p-7 relative overflow-hidden">
+          {/* Subtle Top Accent */}
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-600 via-cyan-500 to-blue-600" />
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* 1. INPUT UNIT (ULP) */}
@@ -417,6 +429,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           </motion.div>
         </div>
       )}
-    </motion.div>
+      </motion.div>
+    </div>
   );
 };

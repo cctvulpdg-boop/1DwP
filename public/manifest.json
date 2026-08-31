@@ -1,0 +1,25 @@
+{
+  "short_name": "1DwP",
+  "name": "1DwP - One Day With Petugas",
+  "description": "1DwP (One Day With Petugas) - Sistem Pendampingan Yantek & Manbill",
+  "icons": [
+    {
+      "src": "https://lh3.googleusercontent.com/d/1HGB_XQgMAG99kFWvUFNptJv6F319KX6_",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://lh3.googleusercontent.com/d/1HGB_XQgMAG99kFWvUFNptJv6F319KX6_",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0f172a",
+  "theme_color": "#0284c7",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "categories": ["utilities", "productivity"]
+}

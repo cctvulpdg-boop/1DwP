@@ -4,7 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <link rel="icon" type="image/png" href="https://lh3.googleusercontent.com/d/1HGB_XQgMAG99kFWvUFNptJv6F319KX6_" />
-    <link rel="apple-touch-icon" href="https://lh3.googleusercontent.com/d/1HGB_XQgMAG99kFWvUFNptJv6F319KX6_" />
+    <link rel="apple-touch-icon" sizes="192x192" href="https://lh3.googleusercontent.com/d/1HGB_XQgMAG99kFWvUFNptJv6F319KX6_" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0284c7" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="1DwP" />
     <title>1DwP - One Day With Petugas</title>
     <meta name="description" content="1DwP (One Day With Petugas) - Sistem Pendampingan Yantek & Manbill dengan integrasi Google Spreadsheet & Drive serta foto eviden ber-watermark." />
     <meta property="og:title" content="1DwP - One Day With Petugas" />
@@ -19,6 +25,15 @@
   <body class="bg-slate-50 text-slate-900 antialiased selection:bg-blue-600 selection:text-white font-sans min-h-screen">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(err => {
+            console.log('SW registration failed:', err);
+          });
+        });
+      }
+    </script>
   </body>
 </html>
 
