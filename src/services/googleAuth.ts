@@ -2,6 +2,8 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import {
   getAuth,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut as fbSignOut,
   GoogleAuthProvider,
   onAuthStateChanged,
@@ -83,6 +85,36 @@ export function getAuthState(): GoogleAuthState {
  */
 export function initGoogleAuth(): Promise<boolean> {
   return new Promise((resolve) => {
+    // Check for redirect result if returned from signInWithRedirect
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result) {
+          const credential = GoogleAuthProvider.credentialFromResult(result);
+          if (credential?.accessToken) {
+            const token = credential.accessToken;
+            const expiresAt = Date.now() + 3600 * 1000 * 24 * 30;
+            const email = result.user.email || null;
+            const name = result.user.displayName || null;
+            localStorage.setItem('g_access_token', token);
+            localStorage.setItem('g_token_expiry', expiresAt.toString());
+            if (email) localStorage.setItem('g_user_email', email);
+            if (name) localStorage.setItem('g_user_name', name);
+            currentAuthState = {
+              isSignedIn: true,
+              accessToken: token,
+              expiresAt,
+              userEmail: email,
+              userName: name,
+              error: null,
+            };
+            notifyListeners();
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn('Redirect auth result check error:', err);
+      });
+
     // 1. Check existing storage for instant token recovery (localStorage > sessionStorage)
     const savedToken = localStorage.getItem('g_access_token') || sessionStorage.getItem('g_access_token');
     const savedExpiry = localStorage.getItem('g_token_expiry') || sessionStorage.getItem('g_token_expiry');
@@ -149,7 +181,26 @@ export async function requestGoogleSignIn(): Promise<string | null> {
   isSigningIn = true;
 
   try {
-    const result = await signInWithPopup(auth, provider);
+    let result;
+    try {
+      result = await signInWithPopup(auth, provider);
+    } catch (popupError: any) {
+      if (
+        popupError?.code === 'auth/popup-blocked' ||
+        popupError?.code === 'auth/popup-closed-by-user' ||
+        (popupError?.message && popupError.message.includes('popup-blocked'))
+      ) {
+        console.warn('Popup login diblokir peramban, mengalihkan menggunakan signInWithRedirect:', popupError);
+        try {
+          await signInWithRedirect(auth, provider);
+          return null;
+        } catch (redirectErr) {
+          console.warn('Redirect login error:', redirectErr);
+        }
+      }
+      throw popupError;
+    }
+
     const credential = GoogleAuthProvider.credentialFromResult(result);
     
     if (!credential?.accessToken) {

@@ -60,6 +60,7 @@ export default function App() {
     unit: '',
     companion: '',
     assistedUnit: '',
+    workOrderNo: '',
     officer1: '',
     officer2: '',
     answers: {},
@@ -114,15 +115,28 @@ export default function App() {
 
   // Update Form State Helper
   const handleUpdateForm = (updates: Partial<InspectionFormData>) => {
-    setFormData((prev) => ({
-      ...prev,
-      ...updates,
-    }));
+    setFormData((prev) => {
+      const next = {
+        ...prev,
+        ...updates,
+      };
+      const normUnit = (next.unit || '').trim().toUpperCase();
+      const isULPadang = normUnit === 'UL PADANG' || normUnit === 'ULPADANG' || normUnit.includes('PADANG');
+      if (!isULPadang) {
+        next.assistedUnit = next.unit;
+      }
+      return next;
+    });
   };
 
   // Step 1 -> Step 2: Login Success
   const handleLogin = () => {
     if (formData.division && formData.unit && formData.companion) {
+      const normUnit = (formData.unit || '').trim().toUpperCase();
+      const isULPadang = normUnit === 'UL PADANG' || normUnit === 'ULPADANG' || normUnit.includes('PADANG');
+      if (!isULPadang) {
+        setFormData((prev) => ({ ...prev, assistedUnit: prev.unit }));
+      }
       setStep('assistance');
     }
   };
@@ -135,6 +149,11 @@ export default function App() {
   const handleStartQuestions = async () => {
     setIsLoadingData(true);
     try {
+      const normUnit = (formData.unit || '').trim().toUpperCase();
+      const isULPadang = normUnit === 'UL PADANG' || normUnit === 'ULPADANG' || normUnit.includes('PADANG');
+      if (!isULPadang) {
+        setFormData((prev) => ({ ...prev, assistedUnit: prev.unit }));
+      }
       const loadedQuestions = await getQuestions(formData.division);
       setQuestions(loadedQuestions);
       setStep('questions');
@@ -150,6 +169,7 @@ export default function App() {
   const handleCancelAssistance = () => {
     handleUpdateForm({
       assistedUnit: '',
+      workOrderNo: '',
       officer1: '',
       officer2: '',
     });
@@ -179,6 +199,7 @@ export default function App() {
     setFormData((prev) => ({
       ...prev,
       assistedUnit: '',
+      workOrderNo: '',
       officer1: '',
       officer2: '',
       answers: {},
@@ -196,6 +217,7 @@ export default function App() {
       unit: '',
       companion: '',
       assistedUnit: '',
+      workOrderNo: '',
       officer1: '',
       officer2: '',
       answers: {},

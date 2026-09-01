@@ -77,6 +77,7 @@ export interface InspectionFormData {
 
   // Assistance phase
   assistedUnit: string; // filled if unit === "UL PADANG"
+  workOrderNo?: string;
   officer1: string;
   officer2: string;
 

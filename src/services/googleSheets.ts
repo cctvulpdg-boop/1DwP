@@ -1702,6 +1702,19 @@ export function mapFormDataToHeaders(
       return formData.companion || '';
     }
 
+    // 2E_WO. No Work Order / Work Order Number
+    if (
+      h === 'no work order' ||
+      h === 'no. work order' ||
+      h === 'work order' ||
+      h === 'no wo' ||
+      h === 'no. wo' ||
+      h === 'nomor work order' ||
+      h === 'nomor wo'
+    ) {
+      return formData.workOrderNo || '';
+    }
+
     // 2F. Petugas 1
     if (
       h === 'petugas 1' ||
@@ -1836,6 +1849,7 @@ export function getDefaultReportHeaders(division: string, questions: QuestionIte
     'Unit Asal',
     'Unit Yang Didampingi',
     'Nama Pendamping',
+    'NO WORK ORDER',
     isManbill ? 'Petugas Manbill 1' : 'Petugas Yantek 1',
     isManbill ? 'Petugas Manbill 2' : 'Petugas Yantek 2',
     ...questions.map((q, idx) => `P${idx + 1}: ${q.text}`),
@@ -2072,12 +2086,24 @@ export async function getLaporanYantekFromSpreadsheet(): Promise<InspectionFormD
 
   const headerRow = rows[0].map((h) => (h || '').toLowerCase().trim());
 
-  const idCol = headerRow.findIndex((h) => h.includes('id') || h.includes('kode'));
-  const timestampCol = headerRow.findIndex((h) => h.includes('timestamp') || h.includes('waktu') || h.includes('tanggal'));
+  const idCol = headerRow.findIndex((h) => h === 'id' || h === 'id laporan' || h.includes('kode id') || h === 'no id');
+  const timestampCol = headerRow.findIndex(
+    (h) =>
+      h === 'timestamp' ||
+      h === 'waktu' ||
+      h === 'tanggal & waktu' ||
+      h === 'timestamp / waktu' ||
+      h === 'waktu / tanggal' ||
+      h === 'waktu input' ||
+      h === 'waktu submit' ||
+      h.startsWith('timestamp') ||
+      (h.includes('timestamp') && !h.includes('petugas'))
+  );
   const divisionCol = headerRow.findIndex((h) => h === 'divisi');
   const unitCol = headerRow.findIndex((h) => h.includes('unit asal') || h === 'unit' || h === 'ulp');
   const assistedUnitCol = headerRow.findIndex((h) => h.includes('didampingi'));
   const companionCol = headerRow.findIndex((h) => h.includes('pendamping'));
+  const workOrderNoCol = headerRow.findIndex((h) => h.includes('work order') || h === 'no wo' || h === 'wo');
   const officer1Col = headerRow.findIndex((h) => h.includes('petugas 1') || h.includes('petugas yantek 1') || h.includes('petugas manbill 1'));
   const officer2Col = headerRow.findIndex((h) => h.includes('petugas 2') || h.includes('petugas yantek 2') || h.includes('petugas manbill 2'));
   const notesCol = headerRow.findIndex((h) => h.includes('catatan') || h.includes('temuan'));
@@ -2095,6 +2121,7 @@ export async function getLaporanYantekFromSpreadsheet(): Promise<InspectionFormD
     const unit = unitCol !== -1 && row[unitCol]?.trim() ? row[unitCol].trim() : '';
     const assistedUnit = assistedUnitCol !== -1 && row[assistedUnitCol]?.trim() ? row[assistedUnitCol].trim() : '';
     const companion = companionCol !== -1 && row[companionCol]?.trim() ? row[companionCol].trim() : '';
+    const workOrderNo = workOrderNoCol !== -1 && row[workOrderNoCol]?.trim() ? row[workOrderNoCol].trim() : '';
     const officer1 = officer1Col !== -1 && row[officer1Col]?.trim() ? row[officer1Col].trim() : '';
     const officer2 = officer2Col !== -1 && row[officer2Col]?.trim() ? row[officer2Col].trim() : '';
     const notesStr = notesCol !== -1 && row[notesCol]?.trim() ? row[notesCol].trim() : '';
@@ -2112,6 +2139,7 @@ export async function getLaporanYantekFromSpreadsheet(): Promise<InspectionFormD
         colIdx === unitCol ||
         colIdx === assistedUnitCol ||
         colIdx === companionCol ||
+        colIdx === workOrderNoCol ||
         colIdx === officer1Col ||
         colIdx === officer2Col ||
         colIdx === notesCol ||
@@ -2132,6 +2160,8 @@ export async function getLaporanYantekFromSpreadsheet(): Promise<InspectionFormD
         clean.includes('unit') ||
         clean.includes('ulp') ||
         clean.includes('pendamping') ||
+        clean.includes('work order') ||
+        clean.includes('wo') ||
         clean.includes('petugas') ||
         clean.includes('catatan') ||
         clean.includes('temuan') ||
@@ -2269,6 +2299,7 @@ export async function getLaporanYantekFromSpreadsheet(): Promise<InspectionFormD
       unit,
       assistedUnit,
       companion,
+      workOrderNo,
       officer1,
       officer2,
       notes: notesStr ? { 0: notesStr } : {},

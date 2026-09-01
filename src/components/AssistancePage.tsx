@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { OfficerItem, InspectionFormData } from '../types';
-import { Users, User, ArrowRight, RotateCcw, Building, ShieldAlert, Sparkles, ChevronDown, CheckCircle2 } from 'lucide-react';
+import { Users, User, ArrowRight, RotateCcw, Building, ShieldAlert, Sparkles, ChevronDown, CheckCircle2, FileText } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface AssistancePageProps {
@@ -23,7 +23,7 @@ export const AssistancePage: React.FC<AssistancePageProps> = ({
   // Check if unit on login is "UL PADANG" (case-insensitive & trimmed)
   const isULPadang = useMemo(() => {
     const u = (formData.unit || '').trim().toUpperCase();
-    return u === 'UL PADANG' || u === 'ULPADANG';
+    return u === 'UL PADANG' || u === 'ULPADANG' || u.includes('PADANG');
   }, [formData.unit]);
 
   // Determine effective unit for officer filtering
@@ -105,7 +105,10 @@ export const AssistancePage: React.FC<AssistancePageProps> = ({
 
   // Units available for "Unit Yang Didampingi" (filter out UL PADANG or show all other ULPs)
   const assistedUnitOptions = useMemo(() => {
-    return units.filter((u) => u.trim().toUpperCase() !== 'UL PADANG');
+    return units.filter((u) => {
+      const norm = u.trim().toUpperCase();
+      return norm !== 'UL PADANG' && norm !== 'ULPADANG' && !norm.includes('PADANG');
+    });
   }, [units]);
 
   // Validation
@@ -113,8 +116,8 @@ export const AssistancePage: React.FC<AssistancePageProps> = ({
     if (isULPadang && !formData.assistedUnit) {
       return false;
     }
-    return Boolean(formData.officer1 && formData.officer2);
-  }, [isULPadang, formData.assistedUnit, formData.officer1, formData.officer2]);
+    return Boolean((formData.workOrderNo || '').trim() && formData.officer1 && formData.officer2);
+  }, [isULPadang, formData.assistedUnit, formData.workOrderNo, formData.officer1, formData.officer2]);
 
   return (
     <motion.div
@@ -191,6 +194,24 @@ export const AssistancePage: React.FC<AssistancePageProps> = ({
             </p>
           </motion.div>
         )}
+
+        {/* NO WORK ORDER */}
+        <div className="space-y-1.5">
+          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <FileText className="w-4 h-4 text-blue-600" />
+              No Work Order
+            </span>
+            <span className="text-[10px] text-slate-400 font-normal">Sheet: LAPORAN_YANTEK</span>
+          </label>
+          <input
+            type="text"
+            value={formData.workOrderNo || ''}
+            onChange={(e) => onUpdateForm({ workOrderNo: e.target.value })}
+            placeholder="Masukkan No Work Order..."
+            className="w-full bg-slate-50 border border-slate-300 hover:border-slate-400 focus:border-blue-600 focus:bg-white text-slate-900 text-sm font-semibold rounded-xl px-4 py-3.5 focus:ring-4 focus:ring-blue-600/10 transition outline-none"
+          />
+        </div>
 
         {/* NAMA PETUGAS 1 */}
         <div className="space-y-1.5">

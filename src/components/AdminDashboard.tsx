@@ -223,6 +223,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             lk.includes('pendamping') ||
             lk.includes('officer') ||
             lk.includes('petugas') ||
+            lk.includes('workorder') ||
+            lk.includes('work order') ||
+            lk.includes('wo') ||
             lk.includes('note') ||
             lk.includes('catatan') ||
             lk.includes('photo') ||
@@ -1554,6 +1557,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             lk.includes('pendamping') ||
                             lk.includes('officer') ||
                             lk.includes('petugas') ||
+                            lk.includes('workorder') ||
+                            lk.includes('work order') ||
+                            lk.includes('wo') ||
                             lk.includes('note') ||
                             lk.includes('catatan') ||
                             lk.includes('photo') ||
