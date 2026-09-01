@@ -20,19 +20,19 @@ export const AssistancePage: React.FC<AssistancePageProps> = ({
   onStartQuestions,
   onCancel,
 }) => {
-  // Check if unit on login is "UL PADANG" (case-insensitive & trimmed)
-  const isULPadang = useMemo(() => {
+  // Check if unit on login is "UL PADANG" or "PLN" (case-insensitive & trimmed)
+  const isNeedsAssistedUnit = useMemo(() => {
     const u = (formData.unit || '').trim().toUpperCase();
-    return u === 'UL PADANG' || u === 'ULPADANG' || u.includes('PADANG');
+    return u === 'UL PADANG' || u === 'ULPADANG' || u.includes('PADANG') || u === 'PLN';
   }, [formData.unit]);
 
   // Determine effective unit for officer filtering
   const targetUnit = useMemo(() => {
-    if (isULPadang && formData.assistedUnit) {
+    if (isNeedsAssistedUnit && formData.assistedUnit) {
       return formData.assistedUnit.trim().toUpperCase();
     }
     return (formData.unit || '').trim().toUpperCase();
-  }, [isULPadang, formData.assistedUnit, formData.unit]);
+  }, [isNeedsAssistedUnit, formData.assistedUnit, formData.unit]);
 
   // Helper to test if officer matches target unit
   const officerMatchesUnit = (officer: OfficerItem, target: string) => {
@@ -71,8 +71,8 @@ export const AssistancePage: React.FC<AssistancePageProps> = ({
   const availableOfficers1 = useMemo(() => {
     if (!officers || officers.length === 0) return [];
 
-    // If UL PADANG and assistedUnit not yet selected, wait for user to select
-    if (isULPadang && !formData.assistedUnit) {
+    // If UL PADANG or PLN and assistedUnit not yet selected, wait for user to select
+    if (isNeedsAssistedUnit && !formData.assistedUnit) {
       return [];
     }
 
@@ -94,7 +94,7 @@ export const AssistancePage: React.FC<AssistancePageProps> = ({
       }
     }
     return unique;
-  }, [officers, targetUnit, isULPadang, formData.assistedUnit]);
+  }, [officers, targetUnit, isNeedsAssistedUnit, formData.assistedUnit]);
 
   // Filter officers for Petugas 2 (EXCLUDING PETUGAS 1)
   const availableOfficers2 = useMemo(() => {
@@ -103,21 +103,21 @@ export const AssistancePage: React.FC<AssistancePageProps> = ({
     );
   }, [availableOfficers1, formData.officer1]);
 
-  // Units available for "Unit Yang Didampingi" (filter out UL PADANG or show all other ULPs)
+  // Units available for "Unit Yang Didampingi" (filter out UL PADANG / PLN or show all other ULPs)
   const assistedUnitOptions = useMemo(() => {
     return units.filter((u) => {
       const norm = u.trim().toUpperCase();
-      return norm !== 'UL PADANG' && norm !== 'ULPADANG' && !norm.includes('PADANG');
+      return norm !== 'UL PADANG' && norm !== 'ULPADANG' && !norm.includes('PADANG') && norm !== 'PLN';
     });
   }, [units]);
 
   // Validation
   const isFormValid = useMemo(() => {
-    if (isULPadang && !formData.assistedUnit) {
+    if (isNeedsAssistedUnit && !formData.assistedUnit) {
       return false;
     }
     return Boolean((formData.workOrderNo || '').trim() && formData.officer1 && formData.officer2);
-  }, [isULPadang, formData.assistedUnit, formData.workOrderNo, formData.officer1, formData.officer2]);
+  }, [isNeedsAssistedUnit, formData.assistedUnit, formData.workOrderNo, formData.officer1, formData.officer2]);
 
   return (
     <motion.div
@@ -151,8 +151,8 @@ export const AssistancePage: React.FC<AssistancePageProps> = ({
 
       {/* Main Assistance Form */}
       <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xl shadow-slate-200/50 p-6 sm:p-7 space-y-5">
-        {/* CONDITIONAL: UNIT YANG DIDAMPINGI (Hanya muncul jika unit login = UL PADANG) */}
-        {isULPadang && (
+        {/* CONDITIONAL: UNIT YANG DIDAMPINGI (Muncul jika unit login = UL PADANG atau PLN) */}
+        {isNeedsAssistedUnit && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
@@ -165,7 +165,7 @@ export const AssistancePage: React.FC<AssistancePageProps> = ({
                 Unit Yang Didampingi
               </span>
               <span className="text-[10px] text-blue-600 font-semibold px-2 py-0.5 rounded bg-blue-100">
-                Wajib untuk UL PADANG
+                Wajib untuk {formData.unit || 'UL PADANG'}
               </span>
             </label>
             <div className="relative">
@@ -233,11 +233,11 @@ export const AssistancePage: React.FC<AssistancePageProps> = ({
                   officer2: formData.officer2 === newOfficer1 ? '' : formData.officer2,
                 });
               }}
-              disabled={isULPadang && !formData.assistedUnit}
+              disabled={isNeedsAssistedUnit && !formData.assistedUnit}
               className="w-full appearance-none bg-slate-50 border border-slate-300 hover:border-slate-400 focus:border-blue-600 focus:bg-white text-slate-900 text-sm font-semibold rounded-xl px-4 py-3.5 pr-10 focus:ring-4 focus:ring-blue-600/10 transition outline-none cursor-pointer disabled:bg-slate-100 disabled:text-slate-400"
             >
               <option value="">
-                {isULPadang && !formData.assistedUnit
+                {isNeedsAssistedUnit && !formData.assistedUnit
                   ? '-- Pilih Unit Yang Didampingi Dahulu --'
                   : '-- Pilih Nama Petugas 1 --'}
               </option>

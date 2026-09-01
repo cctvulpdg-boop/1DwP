@@ -159,8 +159,8 @@ function handleSubmitReport(payload) {
   var questionColIndex = 0;
 
   var uVal = (formData.unit || '').trim().toUpperCase();
-  var isULPadang = uVal === 'UL PADANG' || uVal === 'ULPADANG' || uVal.indexOf('PADANG') !== -1;
-  var effectiveAssistedUnit = isULPadang ? (formData.assistedUnit || formData.unit || '') : (formData.unit || '');
+  var isNeedsAssistedUnit = uVal === 'UL PADANG' || uVal === 'ULPADANG' || uVal.indexOf('PADANG') !== -1 || uVal === 'PLN';
+  var effectiveAssistedUnit = isNeedsAssistedUnit ? (formData.assistedUnit || formData.unit || '') : (formData.unit || '');
 
   // Susun Baris Data Sesuai Kolom Header Secara Presisi
   var newRow = headers.map(function(rawH, colIdx) {
@@ -333,8 +333,8 @@ function handleGetReports(sheetName) {
     }
 
     var uNorm = (unit || '').trim().toUpperCase();
-    var isULPadangRep = uNorm === 'UL PADANG' || uNorm === 'ULPADANG' || uNorm.indexOf('PADANG') !== -1;
-    var finalAssistedUnit = isULPadangRep ? (assistedUnit || unit) : unit;
+    var isNeedsAssistedUnitRep = uNorm === 'UL PADANG' || uNorm === 'ULPADANG' || uNorm.indexOf('PADANG') !== -1 || uNorm === 'PLN';
+    var finalAssistedUnit = isNeedsAssistedUnitRep ? (assistedUnit || unit) : unit;
 
     reports.push({
       reportId: reportId,

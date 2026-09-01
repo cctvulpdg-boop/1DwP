@@ -121,8 +121,8 @@ export default function App() {
         ...updates,
       };
       const normUnit = (next.unit || '').trim().toUpperCase();
-      const isULPadang = normUnit === 'UL PADANG' || normUnit === 'ULPADANG' || normUnit.includes('PADANG');
-      if (!isULPadang) {
+      const isNeedsAssistedUnit = normUnit === 'UL PADANG' || normUnit === 'ULPADANG' || normUnit.includes('PADANG') || normUnit === 'PLN';
+      if (!isNeedsAssistedUnit) {
         next.assistedUnit = next.unit;
       }
       return next;
@@ -133,8 +133,8 @@ export default function App() {
   const handleLogin = () => {
     if (formData.division && formData.unit && formData.companion) {
       const normUnit = (formData.unit || '').trim().toUpperCase();
-      const isULPadang = normUnit === 'UL PADANG' || normUnit === 'ULPADANG' || normUnit.includes('PADANG');
-      if (!isULPadang) {
+      const isNeedsAssistedUnit = normUnit === 'UL PADANG' || normUnit === 'ULPADANG' || normUnit.includes('PADANG') || normUnit === 'PLN';
+      if (!isNeedsAssistedUnit) {
         setFormData((prev) => ({ ...prev, assistedUnit: prev.unit }));
       }
       setStep('assistance');
@@ -150,8 +150,8 @@ export default function App() {
     setIsLoadingData(true);
     try {
       const normUnit = (formData.unit || '').trim().toUpperCase();
-      const isULPadang = normUnit === 'UL PADANG' || normUnit === 'ULPADANG' || normUnit.includes('PADANG');
-      if (!isULPadang) {
+      const isNeedsAssistedUnit = normUnit === 'UL PADANG' || normUnit === 'ULPADANG' || normUnit.includes('PADANG') || normUnit === 'PLN';
+      if (!isNeedsAssistedUnit) {
         setFormData((prev) => ({ ...prev, assistedUnit: prev.unit }));
       }
       const loadedQuestions = await getQuestions(formData.division);

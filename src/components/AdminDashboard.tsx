@@ -1576,10 +1576,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         });
                       }
 
-                      // Rule: Kolom UNIT YANG DIDAMPINGI sama dengan UNIT kecuali kalau UNIT adalah UL PADANG maka UNIT YANG DIDAMPINGI sesuai dengan yang di Inputkan.
+                      // Rule: Kolom UNIT YANG DIDAMPINGI sama dengan UNIT kecuali kalau UNIT adalah UL PADANG atau PLN maka UNIT YANG DIDAMPINGI sesuai dengan yang di Inputkan.
                       const unitVal = (rep.unit || '').trim();
-                      const isUlPadang = unitVal.toUpperCase() === 'UL PADANG' || unitVal.toUpperCase().includes('PADANG');
-                      const displayAssistedUnit = isUlPadang ? (rep.assistedUnit || unitVal || '-') : (unitVal || '-');
+                      const uNorm = unitVal.toUpperCase();
+                      const isNeedsAssistedUnit = uNorm === 'UL PADANG' || uNorm.includes('PADANG') || uNorm === 'PLN';
+                      const displayAssistedUnit = isNeedsAssistedUnit ? (rep.assistedUnit || unitVal || '-') : (unitVal || '-');
 
                       const fotos = rep.evidenPhotos || [];
 
